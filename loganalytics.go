@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -17,8 +18,12 @@ import (
 )
 
 const (
-	envWorkspaceID     = "LOG2OMS_WORKSPACE_ID"
-	envWorkspaceSecret = "LOG2OMS_WORKSPACE_SECRET"
+	envWorkspaceID       = "LOGANALYTICS_WORKSPACE_ID"
+	envWorkspaceSecret   = "LOGANALYTICS_WORKSPACE_SECRET"
+	envIoTHubName        = "IOTEDGE_IOTHUBHOSTNAME"
+	envIoTHubDeviceID    = "IOTEDGE_DEVICEID"
+	envGatewayHostName   = "IOTEDGE_GATEWAYHOSTNAME"
+	envEdgeHubConnString = "EdgeHubConnectionString"
 )
 
 var (
@@ -30,6 +35,9 @@ type LogClient struct {
 	workspaceID     string
 	workspaceSecret string
 	httpClient      *http.Client
+	hostname        string
+	iotHubName      string
+	iotHubDeviceID  string
 	signingKey      []byte
 	apiLogsURL      string
 }
@@ -44,10 +52,12 @@ type ModuleMessage struct {
 	ContainerID    string    `json:"containerID"`
 	ContainerImage string    `json:"containerImage"`
 	Hostname       string    `json:"hostname"`
+	IoTHubName     string    `json:"iothubname"`
+	IoTHubDeviceID string    `json:"iothubdeviceid"`
 }
 
 // NewLogClient creates a log client
-func NewLogClient(workspaceID, workspaceSecret) LogClient {
+func NewLogClient(workspaceID, workspaceSecret string) LogClient {
 	client := LogClient{
 		workspaceID:     workspaceID,
 		workspaceSecret: workspaceSecret,
@@ -56,6 +66,22 @@ func NewLogClient(workspaceID, workspaceSecret) LogClient {
 	client.httpClient = &http.Client{Timeout: time.Second * 30}
 	client.signingKey, _ = base64.StdEncoding.DecodeString(workspaceSecret)
 	client.apiLogsURL = fmt.Sprintf("https://%s.ods.opinsights.azure.com/api/logs?api-version=2016-04-01", workspaceID)
+	client.iotHubName = os.Getenv(envIoTHubName)
+	if len(client.iotHubName) == 0 {
+		connStr := os.Getenv(envEdgeHubConnString)
+		reg := regexp.MustCompile("HostName=(.*?);GatewayHostName=(.*?);DeviceId=(.*?);(.*?)")
+		matches := reg.FindStringSubmatch(connStr)
+		if len(matches) == 5 {
+			client.iotHubName = matches[1]
+			client.hostname = matches[2]
+			client.iotHubDeviceID = matches[3]
+		}
+	}
+
+	if len(client.iotHubDeviceID) == 0 {
+		client.iotHubDeviceID = os.Getenv(envIoTHubDeviceID)
+		client.hostname = os.Getenv(envGatewayHostName)
+	}
 
 	return client
 }
@@ -74,7 +100,9 @@ func (c *LogClient) PostMessage(message *router.Message, timestamp time.Time) er
 		ModuleName:     message.Container.Name,
 		ContainerID:    message.Container.ID,
 		ContainerImage: message.Container.Config.Image,
-		Hostname:       message.Container.Config.Hostname,
+		Hostname:       c.hostname,
+		IoTHubDeviceID: c.iotHubDeviceID,
+		IoTHubName:     c.iotHubName,
 	}
 
 	body, _ := json.Marshal(msg)
@@ -86,14 +114,14 @@ func (c *LogClient) PostMessage(message *router.Message, timestamp time.Time) er
 	signature := computeHmac256(stringToSign, c.signingKey)
 
 	req.Header.Set("Authorization", fmt.Sprintf("SharedKey %s:%s", c.workspaceID, signature))
+	req.Header.Add("Log-Type", "container_logs")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Log-Type", c.logType)
 	req.Header.Set("x-ms-date", date)
 	req.Header.Set("time-generated-field", "Timestamp")
 
 	response, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to post request: %v", err)
+		return err
 	}
 
 	if response.StatusCode != 200 {
@@ -103,13 +131,11 @@ func (c *LogClient) PostMessage(message *router.Message, timestamp time.Time) er
 		time.AfterFunc(
 			time.Second*15,
 			func() {
-				err := c.PostMessages(messages, timestamp)
-				if err != nil {
-					fmt.Printf("[LOG2OMS][%s] Retry failed, will keep retrying", time.Now().UTC().Format(time.RFC3339))
-				}
+				c.PostMessage(message, timestamp)
 			})
 
-		return fmt.Errorf("[LOG2OMS][%s] Post log request failed with status: %d %s", time.Now().UTC().Format(time.RFC3339), response.StatusCode, string(buf))
+		return fmt.Errorf("[loganalytics][%s] Post log request failed with status: %d %s", time.Now().UTC().Format(time.RFC3339), response.StatusCode, string(buf))
+
 	}
 
 	return nil
@@ -129,15 +155,15 @@ func computeHmac256(message string, secret []byte) string {
 func NewLogAnalyticsAdapter(route *router.Route) (router.LogAdapter, error) {
 	workspaceID, workspaceSecret := os.Getenv(envWorkspaceID), os.Getenv(envWorkspaceSecret)
 	if workspaceID == "" || workspaceSecret == "" {
-		fmt.Printf("Workspace Id and secret not defined in environment variable '%s' and '%s'\n", envWorkspaceID, envWorkspaceSecret)
-		return
+		return nil,
+			fmt.Errorf("Workspace Id and secret not defined in environment variable '%s' and '%s'.\n", envWorkspaceID, envWorkspaceSecret)
 	}
 
 	client := NewLogClient(workspaceID, workspaceSecret)
 
 	return &Adapter{
 		route:  route,
-		client: client,
+		client: &client,
 	}, nil
 }
 
