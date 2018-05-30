@@ -34,7 +34,7 @@ Here are the values and steps for logging module creation:
             "BACKLOG=false",
             "LOGSPOUT=ignore",
             "LOGANALYTICS_WORKSPACE_ID=<replace-with-loganalytics-workspace-id>",
-            "LOGANALYTICS_WORKSPACE_SECRET=<replace-with-workspace-key>
+            "LOGANALYTICS_WORKSPACE_SECRET=<replace-with-workspace-key>"
         ],
         "Cmd": [
             "loganalytics://"
