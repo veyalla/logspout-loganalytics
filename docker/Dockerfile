@@ -30,10 +30,11 @@ COPY ./modules.go ./
 RUN go get github.com/kbeaugrand/logspout-loganalytics \
     && go build -ldflags "-X main.Version=${logspout_version} -w -s" -o /bin/logspout
 
-FROM scratch
+FROM alpine
 LABEL maintainer "Kevin BEAUGRAND <kbeaugrand@gmail.com>"
 
 VOLUME /mnt/routes
+VOLUME /var/run/docker.sock
 
 # Import from the builder.
 COPY --from=builder /etc/passwd /etc/passwd
