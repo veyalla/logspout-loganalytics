@@ -1,9 +1,6 @@
-FROM alpine as builder
+FROM golang as builder
 
 ARG logspout_version=3.2.6
-
-RUN set -e \
-    && apk add --update go build-base git mercurial ca-certificates
 
 COPY ./CGI-WebGateway2.pem /usr/local/share/ca-certificates/CGI-WebGateway2.pem
 RUN update-ca-certificates

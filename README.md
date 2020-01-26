@@ -15,11 +15,8 @@ This module leverages [gliderlabs/logspout](https://github.com/gliderlabs/logspo
 ## Available platforms
 * linux/amd64
 * linux/arm64
-* linux/ppc64le
-* linux/s390x
 * linux/386
 * linux/arm/v7
-* linux/arm/v6
 
 # Getting started
 You'll need to create a log analytics workspace, configure the log module in IoT hub with required settings and you should be good to go!
