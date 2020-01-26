@@ -12,6 +12,15 @@ This module leverages [gliderlabs/logspout](https://github.com/gliderlabs/logspo
 
 ![architecture](media/logspout.png)
 
+## Available platforms
+* linux/amd64
+* linux/arm64
+* linux/ppc64le
+* linux/s390x
+* linux/386
+* linux/arm/v7
+* linux/arm/v6
+
 # Getting started
 You'll need to create a log analytics workspace, configure the log module in IoT hub with required settings and you should be good to go!
 
@@ -24,8 +33,7 @@ Next, we'll [deploy an IoT edge module](https://docs.microsoft.com/en-us/azure/i
 Here are the values and steps for logging module creation:
 1. In the **Name** field, enter the logging module name of your choice e.g. ```logspout```
 1. In the **Image URI** field, enter
-    * ```veyalla/logspout-loganalytics:linux-arm32v7``` for ARM platforms running Linux.
-    * ```veyalla/logspout-loganalytics:linux-amd64``` for AMD64 platforms running Linux.
+    * ```kbeaugrand/logspout-loganalytics``` for ARM platforms running Linux.
     * Windows is not supported yet.
 1. In the **Container Create Options** field, enter
     ```
