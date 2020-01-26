@@ -33,7 +33,7 @@ Next, we'll [deploy an IoT edge module](https://docs.microsoft.com/en-us/azure/i
 Here are the values and steps for logging module creation:
 1. In the **Name** field, enter the logging module name of your choice e.g. ```logspout```
 1. In the **Image URI** field, enter
-    * ```kbeaugrand/logspout-loganalytics``` for ARM platforms running Linux.
+    * ```kbeaugrand/logspout-loganalytics``` for platforms listed above.
     * Windows is not supported yet.
 1. In the **Container Create Options** field, enter
     ```
@@ -49,7 +49,7 @@ Here are the values and steps for logging module creation:
         ],
         "HostConfig": {
             "Binds": [
-            "/var/run/docker.sock:/var/run/docker.sock"
+                "/var/run/docker.sock:/var/run/docker.sock"
             ]
         }
     }

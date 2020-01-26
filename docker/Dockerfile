@@ -26,4 +26,4 @@ ENTRYPOINT ["/bin/logspout"]
 COPY --from=builder /bin/logspout /bin/logspout
 
 # backwards compatibility
-RUN ln -fs /tmp/docker.sock /var/run/docker.sock
+# RUN ln -fs /tmp/docker.sock /var/run/docker.sock
