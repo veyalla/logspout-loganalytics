@@ -16,7 +16,7 @@ RUN adduser \
     "${USER}"
 
 RUN apk update \
-    && apk add --no-cache go build-base git ca-certificates \
+    && apk add --no-cache go build-base git ca-certificates libcap  \
     && update-ca-certificates
 
 RUN git clone https://github.com/gliderlabs/logspout /src \
@@ -29,6 +29,9 @@ COPY ./modules.go ./
 
 RUN go get github.com/kbeaugrand/logspout-loganalytics \
     && go build -ldflags "-X main.Version=${logspout_version} -w -s" -o /bin/logspout
+
+# Set the privileges for our built app executable to run on privileged ports
+RUN setcap 'cap_net_bind_service=+ep' /bin/logspout
 
 FROM alpine
 LABEL maintainer "Kevin BEAUGRAND <kbeaugrand@gmail.com>"
@@ -45,6 +48,6 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /bin/logspout /bin/logspout
 
 # Use an unprivileged user.
-USER logspout:logspout
+# USER logspout:logspout
 
 ENTRYPOINT ["/bin/logspout"]
